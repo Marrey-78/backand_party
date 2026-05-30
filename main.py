@@ -24,7 +24,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://city-event-19c87.web.app", "http://localhost:5173" ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

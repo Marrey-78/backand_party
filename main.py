@@ -12,7 +12,7 @@ from fastapi import Depends
 from venues import (get_current_user_id, get_all_venue_types, create_new_venue, get_my_venues, delete_my_venue)
 from events import create_new_event, get_venue_events, delete_my_event, create_new_organizer_event, get_organizer_events
 from images import get_default_images
-from public_events import get_events_for_map, get_events_near_user
+from public_events import get_events_for_map, get_events_near_user, get_events_for_city
 from organizers import create_new_organizer, get_my_organizers, delete_my_organizer
 
 
@@ -241,3 +241,7 @@ def create_organizer_event( data: CreateOrganizerEventRequest, user_id: str = De
 @app.get("/events/nearby")
 def nearby_events(lat: float, lng: float, radius_km: float = 20):
     return get_events_near_user(lat, lng, radius_km)
+
+@app.get("/events/city/{city}")
+def city_events(city: str):
+    return get_events_for_city(city)

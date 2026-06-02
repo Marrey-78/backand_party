@@ -208,16 +208,28 @@ class DatabaseManager:
         with self.conn.cursor() as cur:
             cur.execute("""
                 DELETE FROM events e
-                USING venues v
-                WHERE e.venue_id = v.id
-                AND e.id = %s
-                AND v.owner_user_id = %s
+                WHERE e.id = %s
+                AND (
+                    EXISTS (
+                        SELECT 1
+                        FROM venues v
+                        WHERE v.id = e.venue_id
+                        AND v.owner_user_id = %s
+                    )
+                    OR
+                    EXISTS (
+                        SELECT 1
+                        FROM organizers o
+                        WHERE o.id = e.organizer_id
+                        AND o.owner_user_id = %s
+                    )
+                )
                 RETURNING e.id;
-            """, (event_id, owner_user_id))
-
+            """, (event_id, owner_user_id, owner_user_id))
+    
             deleted = cur.fetchone()
             self.conn.commit()
-
+    
             return deleted
     
     def get_default_event_images(self):
@@ -259,6 +271,7 @@ class DatabaseManager:
                 LEFT JOIN organizers o ON e.organizer_id = o.id
                 WHERE COALESCE(v.latitude, e.event_latitude) IS NOT NULL
                 AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+                WHERE event_date >= CURRENT_DATE       
                 ORDER BY e.event_date ASC, e.start_time ASC;
             """)
             return cur.fetchall()
@@ -490,6 +503,7 @@ class DatabaseManager:
     
                     WHERE COALESCE(v.latitude, e.event_latitude) IS NOT NULL
                     AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+                    WHERE event_date >= CURRENT_DATE    
                 ) nearby_events
                 WHERE distance_km <= %s
                 ORDER BY date ASC, start_time ASC;

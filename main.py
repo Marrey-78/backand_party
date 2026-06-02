@@ -12,8 +12,9 @@ from fastapi import Depends
 from venues import (get_current_user_id, get_all_venue_types, create_new_venue, get_my_venues, delete_my_venue)
 from events import create_new_event, get_venue_events, delete_my_event, create_new_organizer_event, get_organizer_events
 from images import get_default_images
-from public_events import get_events_for_map
+from public_events import get_events_for_map, get_events_near_user
 from organizers import create_new_organizer, get_my_organizers, delete_my_organizer
+
 
 
 app = FastAPI()
@@ -236,3 +237,7 @@ def organizer_events(organizer_id: str, user_id: str = Depends(get_current_user_
 @app.post("/organizer-events")
 def create_organizer_event( data: CreateOrganizerEventRequest, user_id: str = Depends(get_current_user_id)):
     return create_new_organizer_event(user_id, data)
+
+@app.get("/events/nearby")
+def nearby_events(lat: float, lng: float, radius_km: float = 20):
+    return get_events_near_user(lat, lng, radius_km)

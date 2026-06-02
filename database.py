@@ -450,5 +450,52 @@ class DatabaseManager:
 
             return cur.fetchall()
 
+    def get_nearby_events(self, lat, lng, radius_km):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT *
+                FROM (
+                    SELECT
+                        e.id,
+                        e.title,
+                        e.description,
+                        e.event_date AS date,
+                        e.start_time,
+                        e.end_time,
+                        e.price,
+                        e.category,
+                        e.image_url,
+                        e.ticket_url,
+                        e.max_participants,
+    
+                        COALESCE(v.name, o.name) AS venue_name,
+                        COALESCE(v.address, e.event_address) AS address,
+                        COALESCE(v.city, e.event_city) AS city,
+                        COALESCE(v.latitude, e.event_latitude) AS latitude,
+                        COALESCE(v.longitude, e.event_longitude) AS longitude,
+    
+                        (
+                            6371 * acos(
+                                cos(radians(%s)) *
+                                cos(radians(COALESCE(v.latitude, e.event_latitude))) *
+                                cos(radians(COALESCE(v.longitude, e.event_longitude)) - radians(%s)) +
+                                sin(radians(%s)) *
+                                sin(radians(COALESCE(v.latitude, e.event_latitude)))
+                            )
+                        ) AS distance_km
+    
+                    FROM events e
+                    LEFT JOIN venues v ON e.venue_id = v.id
+                    LEFT JOIN organizers o ON e.organizer_id = o.id
+    
+                    WHERE COALESCE(v.latitude, e.event_latitude) IS NOT NULL
+                    AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+                ) nearby_events
+                WHERE distance_km <= %s
+                ORDER BY date ASC, start_time ASC;
+            """, (lat, lng, lat, radius_km))
+    
+            return cur.fetchall()
+    
     def close(self):
         self.conn.close()

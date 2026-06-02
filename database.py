@@ -269,9 +269,11 @@ class DatabaseManager:
                 FROM events e
                 LEFT JOIN venues v ON e.venue_id = v.id
                 LEFT JOIN organizers o ON e.organizer_id = o.id
-                WHERE COALESCE(v.latitude, e.event_latitude) IS NOT NULL 
-                AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+                        
                 WHERE e.event_date >= CURRENT_DATE
+                AND COALESCE(v.latitude, e.event_latitude) IS NOT NULL 
+                AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+                
                 ORDER BY e.event_date ASC, e.start_time ASC;
             """)
             return cur.fetchall()
@@ -500,10 +502,11 @@ class DatabaseManager:
                     FROM events e
                     LEFT JOIN venues v ON e.venue_id = v.id
                     LEFT JOIN organizers o ON e.organizer_id = o.id
-
-                    WHERE COALESCE(v.latitude, e.event_latitude) IS NOT NULL
-                    AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+                    
                     WHERE e.event_date >= CURRENT_DATE
+                    AND COALESCE(v.latitude, e.event_latitude) IS NOT NULL
+                    AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+                    
                 ) nearby_events
                 WHERE distance_km <= %s
                 ORDER BY date ASC, start_time ASC;

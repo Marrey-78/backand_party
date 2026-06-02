@@ -256,22 +256,24 @@ class DatabaseManager:
                     e.image_url,
                     e.ticket_url,
                     e.max_participants,
-
-                    COALESCE(v.id::text, o.id::text) AS source_id,
+    
                     COALESCE(v.name, o.name) AS venue_name,
                     COALESCE(v.address, e.event_address) AS address,
                     COALESCE(v.city, e.event_city) AS city,
                     COALESCE(v.latitude, e.event_latitude) AS latitude,
                     COALESCE(v.longitude, e.event_longitude) AS longitude
-
+    
                 FROM events e
                 LEFT JOIN venues v ON e.venue_id = v.id
                 LEFT JOIN organizers o ON e.organizer_id = o.id
+    
                 WHERE e.event_date >= CURRENT_DATE
-                AND COALESCE(v.latitude, e.event_latitude) IS NOT NULL
-                AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+                  AND COALESCE(v.latitude, e.event_latitude) IS NOT NULL
+                  AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
+    
                 ORDER BY e.event_date ASC, e.start_time ASC;
             """)
+    
             return cur.fetchall()
     
     def user_owns_organizer(self, organizer_id, owner_user_id):

@@ -10,7 +10,7 @@ from auth import register_user, login_user
 from typing import Optional
 from fastapi import Depends
 from venues import (get_current_user_id, get_all_venue_types, create_new_venue, get_my_venues, delete_my_venue)
-from events import create_new_event, get_venue_events, delete_my_event, create_new_organizer_event, get_organizer_events
+from events import create_new_event, get_venue_events, delete_my_event, create_new_organizer_event, get_organizer_events, update_my_event
 from images import get_default_images
 from public_events import get_events_for_map, get_events_near_user, get_events_for_city
 from organizers import create_new_organizer, get_my_organizers, delete_my_organizer
@@ -95,6 +95,18 @@ class CreateOrganizerEventRequest(BaseModel):
     max_participants: Optional[int] = None
     event_address: str
     event_city: str
+
+class UpdateEventRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    event_date: str
+    start_time: str
+    end_time: Optional[str] = None
+    price: Optional[float] = None
+    category: Optional[str] = None
+    image_url: Optional[str] = None
+    ticket_url: Optional[str] = None
+    max_participants: Optional[int] = None
 
 @app.get("/")
 def home():
@@ -250,3 +262,15 @@ def city_events(city: str):
 @app.post("/admin/cleanup-past-events")
 def cleanup_events():
     return cleanup_past_events()
+
+@app.put("/events/{event_id}")
+def update_event(
+    event_id: str,
+    data: UpdateEventRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    return update_my_event(
+        owner_user_id=user_id,
+        event_id=event_id,
+        data=data
+    )

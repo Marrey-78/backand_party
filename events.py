@@ -151,3 +151,33 @@ def get_organizer_events(owner_user_id, organizer_id):
 
     finally:
         db.close()
+
+def update_my_event(owner_user_id, event_id, data):
+    db = DatabaseManager()
+
+    try:
+        updated = db.update_event(
+            event_id=event_id,
+            owner_user_id=owner_user_id,
+            title=data.title,
+            description=data.description,
+            event_date=data.event_date,
+            start_time=data.start_time,
+            end_time=data.end_time,
+            price=data.price,
+            category=data.category,
+            image_url=data.image_url,
+            ticket_url=data.ticket_url,
+            max_participants=data.max_participants
+        )
+
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Evento non trovato"
+            )
+
+        return updated
+
+    finally:
+        db.close()

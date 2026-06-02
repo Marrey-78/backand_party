@@ -561,6 +561,72 @@ class DatabaseManager:
             self.conn.commit()
 
             return deleted
-    
+    def update_event(
+        self,
+        event_id,
+        owner_user_id,
+        title,
+        description,
+        event_date,
+        start_time,
+        end_time,
+        price,
+        category,
+        image_url,
+        ticket_url,
+        max_participants
+    ):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                UPDATE events e
+                SET
+                    title = %s,
+                    description = %s,
+                    event_date = %s,
+                    start_time = %s,
+                    end_time = %s,
+                    price = %s,
+                    category = %s,
+                    image_url = %s,
+                    ticket_url = %s,
+                    max_participants = %s
+                WHERE e.id = %s
+                AND (
+                    EXISTS (
+                        SELECT 1
+                        FROM venues v
+                        WHERE v.id = e.venue_id
+                        AND v.owner_user_id = %s
+                    )
+                    OR
+                    EXISTS (
+                        SELECT 1
+                        FROM organizers o
+                        WHERE o.id = e.organizer_id
+                        AND o.owner_user_id = %s
+                    )
+                )
+                RETURNING *;
+            """, (
+                title,
+                description,
+                event_date,
+                start_time,
+                end_time,
+                price,
+                category,
+                image_url,
+                ticket_url,
+                max_participants,
+                event_id,
+                owner_user_id,
+                owner_user_id
+            ))
+
+            updated = cur.fetchone()
+            self.conn.commit()
+
+            return updated
+
     def close(self):
         self.conn.close()

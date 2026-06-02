@@ -14,6 +14,7 @@ from events import create_new_event, get_venue_events, delete_my_event, create_n
 from images import get_default_images
 from public_events import get_events_for_map, get_events_near_user, get_events_for_city
 from organizers import create_new_organizer, get_my_organizers, delete_my_organizer
+from cleanup import cleanup_past_events
 
 
 
@@ -245,3 +246,7 @@ def nearby_events(lat: float, lng: float, radius_km: float = 20):
 @app.get("/events/city/{city}")
 def city_events(city: str):
     return get_events_for_city(city)
+
+@app.post("/admin/cleanup-past-events")
+def cleanup_events():
+    return cleanup_past_events()

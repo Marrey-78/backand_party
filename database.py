@@ -512,23 +512,36 @@ class DatabaseManager:
                     e.image_url,
                     e.ticket_url,
                     e.max_participants,
-    
+
                     COALESCE(v.name, o.name) AS venue_name,
                     COALESCE(v.address, e.event_address) AS address,
                     COALESCE(v.city, e.event_city) AS city,
                     COALESCE(v.latitude, e.event_latitude) AS latitude,
                     COALESCE(v.longitude, e.event_longitude) AS longitude
-    
+
                 FROM events e
                 LEFT JOIN venues v ON e.venue_id = v.id
                 LEFT JOIN organizers o ON e.organizer_id = o.id
-                WHERE LOWER(COALESCE(v.city, e.event_city)) = LOWER(%s)
+                WHERE LOWER(TRIM(COALESCE(v.city, e.event_city))) LIKE LOWER(%s)
                 AND COALESCE(v.latitude, e.event_latitude) IS NOT NULL
                 AND COALESCE(v.longitude, e.event_longitude) IS NOT NULL
                 ORDER BY e.event_date ASC, e.start_time ASC;
-            """, (city,))
-    
+            """, (f"%{city.strip()}%",))
+
             return cur.fetchall()
+        
+    def delete_past_events(self):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM events
+                WHERE event_date < CURRENT_DATE
+                RETURNING id;
+            """)
+    
+            deleted = cur.fetchall()
+            self.conn.commit()
+    
+            return deleted
     
     def close(self):
         self.conn.close()

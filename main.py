@@ -22,6 +22,7 @@ from users import get_my_profile, update_my_profile, change_my_password
 app = FastAPI()
 
 os.makedirs("uploads/events", exist_ok=True)
+os.makedirs("uploads/avatars", exist_ok=True)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
@@ -120,6 +121,17 @@ class UpdateVenueRequest(BaseModel):
     website_url: Optional[str] = None
     instagram_url: Optional[str] = None
     image_url: Optional[str] = None
+
+class UpdateProfileRequest(BaseModel):
+    name: str
+    email: str
+    city: Optional[str] = None
+    avatar: Optional[str] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
 
 
 class UpdateOrganizerRequest(BaseModel):

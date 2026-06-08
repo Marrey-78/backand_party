@@ -75,3 +75,45 @@ def update_my_organizer(owner_user_id, organizer_id, data):
 
     finally:
         db.close()
+
+def add_organizer_favorite(self, user_id, organizer_id):
+    with self.conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO user_organizer_favorites (user_id, organizer_id)
+            VALUES (%s, %s)
+            ON CONFLICT (user_id, organizer_id) DO NOTHING
+            RETURNING *;
+        """, (user_id, organizer_id))
+
+        favorite = cur.fetchone()
+        self.conn.commit()
+        return favorite
+
+
+def remove_organizer_favorite(self, user_id, organizer_id):
+    with self.conn.cursor() as cur:
+        cur.execute("""
+            DELETE FROM user_organizer_favorites
+            WHERE user_id = %s
+            AND organizer_id = %s
+            RETURNING id;
+        """, (user_id, organizer_id))
+
+        deleted = cur.fetchone()
+        self.conn.commit()
+        return deleted
+
+
+def get_user_organizer_favorites(self, user_id):
+    with self.conn.cursor() as cur:
+        cur.execute("""
+            SELECT
+                o.*,
+                f.created_at AS favorite_created_at
+            FROM user_organizer_favorites f
+            JOIN organizers o ON f.organizer_id = o.id
+            WHERE f.user_id = %s
+            ORDER BY f.created_at DESC;
+        """, (user_id,))
+
+        return cur.fetchall()

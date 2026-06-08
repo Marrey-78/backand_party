@@ -730,5 +730,113 @@ class DatabaseManager:
             self.conn.commit()
             return updated
 
+
+    def add_event_favorite(self, user_id, event_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_event_favorites (user_id, event_id)
+                VALUES (%s, %s)
+                ON CONFLICT (user_id, event_id) DO NOTHING
+                RETURNING *;
+            """, (user_id, event_id))
+
+            favorite = cur.fetchone()
+            self.conn.commit()
+            return favorite
+
+
+    def remove_event_favorite(self, user_id, event_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM user_event_favorites
+                WHERE user_id = %s
+                AND event_id = %s
+                RETURNING id;
+            """, (user_id, event_id))
+
+            deleted = cur.fetchone()
+            self.conn.commit()
+            return deleted
+
+
+    def get_user_event_favorites(self, user_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    e.id,
+                    e.title,
+                    e.description,
+                    e.event_date AS date,
+                    e.start_time,
+                    e.end_time,
+                    e.price,
+                    e.category,
+                    e.image_url,
+                    e.ticket_url,
+                    e.max_participants,
+
+                    COALESCE(v.name, o.name) AS venue_name,
+                    COALESCE(v.address, e.event_address) AS address,
+                    COALESCE(v.city, e.event_city) AS city,
+                    COALESCE(v.latitude, e.event_latitude) AS latitude,
+                    COALESCE(v.longitude, e.event_longitude) AS longitude,
+
+                    f.created_at AS favorite_created_at
+
+                FROM user_event_favorites f
+                JOIN events e ON f.event_id = e.id
+                LEFT JOIN venues v ON e.venue_id = v.id
+                LEFT JOIN organizers o ON e.organizer_id = o.id
+                WHERE f.user_id = %s
+                ORDER BY e.event_date ASC, e.start_time ASC;
+            """, (user_id,))
+
+            return cur.fetchall()
+        
+    def add_venue_favorite(self, user_id, venue_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_venue_favorites (user_id, venue_id)
+                VALUES (%s, %s)
+                ON CONFLICT (user_id, venue_id) DO NOTHING
+                RETURNING *;
+            """, (user_id, venue_id))
+    
+            favorite = cur.fetchone()
+            self.conn.commit()
+            return favorite
+    
+    
+    def remove_venue_favorite(self, user_id, venue_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM user_venue_favorites
+                WHERE user_id = %s
+                AND venue_id = %s
+                RETURNING id;
+            """, (user_id, venue_id))
+    
+            deleted = cur.fetchone()
+            self.conn.commit()
+            return deleted
+    
+    
+    def get_user_venue_favorites(self, user_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    v.*,
+                    vt.name AS venue_type_name,
+                    vt.code AS venue_type_code,
+                    f.created_at AS favorite_created_at
+                FROM user_venue_favorites f
+                JOIN venues v ON f.venue_id = v.id
+                LEFT JOIN venue_types vt ON v.venue_type_id = vt.id
+                WHERE f.user_id = %s
+                ORDER BY f.created_at DESC;
+            """, (user_id,))
+    
+            return cur.fetchall()
+    
     def close(self):
         self.conn.close()

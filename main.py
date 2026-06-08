@@ -15,6 +15,7 @@ from images import get_default_images
 from public_events import get_events_for_map, get_events_near_user, get_events_for_city
 from organizers import create_new_organizer, get_my_organizers, delete_my_organizer, update_my_organizer
 from cleanup import cleanup_past_events
+from favorites import ( get_my_event_favorites, add_my_event_favorite,remove_my_event_favorite, get_my_venue_favorites, add_my_venue_favorite, remove_my_venue_favorite, get_my_organizer_favorites, add_my_organizer_favorite, remove_my_organizer_favorite)
 
 
 
@@ -321,3 +322,65 @@ def update_organizer(
         organizer_id=organizer_id,
         data=data
     )
+
+
+@app.get("/favorites/events")
+def my_event_favorites(user_id: str = Depends(get_current_user_id)):
+    return get_my_event_favorites(user_id)
+
+
+@app.post("/favorites/events/{event_id}")
+def add_event_favorite(
+    event_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return add_my_event_favorite(user_id, event_id)
+
+
+@app.delete("/favorites/events/{event_id}")
+def remove_event_favorite(
+    event_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return remove_my_event_favorite(user_id, event_id)
+
+@app.get("/favorites/venues")
+def my_venue_favorites(user_id: str = Depends(get_current_user_id)):
+    return get_my_venue_favorites(user_id)
+
+
+@app.post("/favorites/venues/{venue_id}")
+def add_venue_favorite(
+    venue_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return add_my_venue_favorite(user_id, venue_id)
+
+
+@app.delete("/favorites/venues/{venue_id}")
+def remove_venue_favorite(
+    venue_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return remove_my_venue_favorite(user_id, venue_id)
+
+
+@app.get("/favorites/organizers")
+def my_organizer_favorites(user_id: str = Depends(get_current_user_id)):
+    return get_my_organizer_favorites(user_id)
+
+
+@app.post("/favorites/organizers/{organizer_id}")
+def add_organizer_favorite(
+    organizer_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return add_my_organizer_favorite(user_id, organizer_id)
+
+
+@app.delete("/favorites/organizers/{organizer_id}")
+def remove_organizer_favorite(
+    organizer_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return remove_my_organizer_favorite(user_id, organizer_id)

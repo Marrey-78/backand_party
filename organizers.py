@@ -48,3 +48,30 @@ def delete_my_organizer(owner_user_id, organizer_id):
 
     finally:
         db.close()
+
+def update_my_organizer(owner_user_id, organizer_id, data):
+    db = DatabaseManager()
+
+    try:
+        updated = db.update_organizer(
+            organizer_id=organizer_id,
+            owner_user_id=owner_user_id,
+            name=data.name,
+            description=data.description,
+            phone=data.phone,
+            email=data.email,
+            website_url=data.website_url,
+            instagram_url=data.instagram_url,
+            image_url=data.image_url
+        )
+
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Organizzatore non trovato"
+            )
+
+        return updated
+
+    finally:
+        db.close()

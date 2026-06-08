@@ -561,6 +561,7 @@ class DatabaseManager:
             self.conn.commit()
 
             return deleted
+        
     def update_event(
         self,
         event_id,
@@ -626,6 +627,107 @@ class DatabaseManager:
             updated = cur.fetchone()
             self.conn.commit()
 
+            return updated
+        
+    def update_venue(
+        self,
+        venue_id,
+        owner_user_id,
+        venue_type_id,
+        name,
+        description,
+        address,
+        city,
+        latitude,
+        longitude,
+        phone,
+        email,
+        website_url,
+        instagram_url,
+        image_url
+    ):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                UPDATE venues
+                SET
+                    venue_type_id = %s,
+                    name = %s,
+                    description = %s,
+                    address = %s,
+                    city = %s,
+                    latitude = %s,
+                    longitude = %s,
+                    phone = %s,
+                    email = %s,
+                    website_url = %s,
+                    instagram_url = %s,
+                    image_url = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+                AND owner_user_id = %s
+                RETURNING *;
+            """, (
+                venue_type_id,
+                name,
+                description,
+                address,
+                city,
+                latitude,
+                longitude,
+                phone,
+                email,
+                website_url,
+                instagram_url,
+                image_url,
+                venue_id,
+                owner_user_id
+            ))
+
+            updated = cur.fetchone()
+            self.conn.commit()
+            return updated
+        
+    def update_organizer(
+        self,
+        organizer_id,
+        owner_user_id,
+        name,
+        description,
+        phone,
+        email,
+        website_url,
+        instagram_url,
+        image_url
+    ):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                UPDATE organizers
+                SET
+                    name = %s,
+                    description = %s,
+                    phone = %s,
+                    email = %s,
+                    website_url = %s,
+                    instagram_url = %s,
+                    image_url = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+                AND owner_user_id = %s
+                RETURNING *;
+            """, (
+                name,
+                description,
+                phone,
+                email,
+                website_url,
+                instagram_url,
+                image_url,
+                organizer_id,
+                owner_user_id
+            ))
+
+            updated = cur.fetchone()
+            self.conn.commit()
             return updated
 
     def close(self):

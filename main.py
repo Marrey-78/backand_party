@@ -9,11 +9,11 @@ from pydantic import BaseModel
 from auth import register_user, login_user
 from typing import Optional
 from fastapi import Depends
-from venues import (get_current_user_id, get_all_venue_types, create_new_venue, get_my_venues, delete_my_venue)
+from venues import (get_current_user_id, get_all_venue_types, create_new_venue, get_my_venues, delete_my_venue, update_my_venue)
 from events import create_new_event, get_venue_events, delete_my_event, create_new_organizer_event, get_organizer_events, update_my_event
 from images import get_default_images
 from public_events import get_events_for_map, get_events_near_user, get_events_for_city
-from organizers import create_new_organizer, get_my_organizers, delete_my_organizer
+from organizers import create_new_organizer, get_my_organizers, delete_my_organizer, update_my_organizer
 from cleanup import cleanup_past_events
 
 
@@ -107,6 +107,28 @@ class UpdateEventRequest(BaseModel):
     image_url: Optional[str] = None
     ticket_url: Optional[str] = None
     max_participants: Optional[int] = None
+
+class UpdateVenueRequest(BaseModel):
+    venue_type_id: str
+    name: str
+    description: Optional[str] = None
+    address: str
+    city: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+class UpdateOrganizerRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    image_url: Optional[str] = None
 
 @app.get("/")
 def home():
@@ -272,5 +294,30 @@ def update_event(
     return update_my_event(
         owner_user_id=user_id,
         event_id=event_id,
+        data=data
+    )
+
+@app.put("/venues/{venue_id}")
+def update_venue(
+    venue_id: str,
+    data: UpdateVenueRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    return update_my_venue(
+        owner_user_id=user_id,
+        venue_id=venue_id,
+        data=data
+    )
+
+
+@app.put("/organizers/{organizer_id}")
+def update_organizer(
+    organizer_id: str,
+    data: UpdateOrganizerRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    return update_my_organizer(
+        owner_user_id=user_id,
+        organizer_id=organizer_id,
         data=data
     )

@@ -86,3 +86,41 @@ def delete_my_venue(owner_user_id, venue_id):
 
     finally:
         db.close()
+
+def update_my_venue(owner_user_id, venue_id, data):
+    db = DatabaseManager()
+
+    try:
+        full_address = f"{data.address}, {data.city}, Italia"
+        latitude, longitude = geocode_address(data.address, data.city)
+
+        if latitude is None or longitude is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Impossibile trovare le coordinate del locale"
+            )
+
+        updated = db.update_venue(
+            venue_id=venue_id,
+            owner_user_id=owner_user_id,
+            venue_type_id=data.venue_type_id,
+            name=data.name,
+            description=data.description,
+            address=data.address,
+            city=data.city,
+            latitude=latitude,
+            longitude=longitude,
+            phone=data.phone,
+            email=data.email,
+            website_url=data.website_url,
+            instagram_url=data.instagram_url,
+            image_url=data.image_url
+        )
+
+        if not updated:
+            raise HTTPException(status_code=404, detail="Locale non trovato")
+
+        return updated
+
+    finally:
+        db.close()

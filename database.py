@@ -801,12 +801,12 @@ class DatabaseManager:
                 ON CONFLICT (user_id, venue_id) DO NOTHING
                 RETURNING *;
             """, (user_id, venue_id))
-    
+
             favorite = cur.fetchone()
             self.conn.commit()
             return favorite
-    
-    
+
+
     def remove_venue_favorite(self, user_id, venue_id):
         with self.conn.cursor() as cur:
             cur.execute("""
@@ -815,12 +815,12 @@ class DatabaseManager:
                 AND venue_id = %s
                 RETURNING id;
             """, (user_id, venue_id))
-    
+
             deleted = cur.fetchone()
             self.conn.commit()
             return deleted
-    
-    
+
+
     def get_user_venue_favorites(self, user_id):
         with self.conn.cursor() as cur:
             cur.execute("""
@@ -835,8 +835,50 @@ class DatabaseManager:
                 WHERE f.user_id = %s
                 ORDER BY f.created_at DESC;
             """, (user_id,))
-    
+
             return cur.fetchall()
+            
+    def get_user_by_id(self, user_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, name, email, avatar, city, role, password_hash
+                FROM users
+                WHERE id = %s;
+            """, (user_id,))
+    
+            return cur.fetchone()
+    
+    
+    def update_user_profile(self, user_id, name, email, city, avatar):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                UPDATE users
+                SET
+                    name = %s,
+                    email = %s,
+                    city = %s,
+                    avatar = %s
+                WHERE id = %s
+                RETURNING id, name, email, avatar, city, role;
+            """, (name, email, city, avatar, user_id))
+    
+            updated = cur.fetchone()
+            self.conn.commit()
+            return updated
+    
+    
+    def update_user_password(self, user_id, password_hash):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                UPDATE users
+                SET password_hash = %s
+                WHERE id = %s
+                RETURNING id;
+            """, (password_hash, user_id))
+    
+            updated = cur.fetchone()
+            self.conn.commit()
+            return updated
     
     def close(self):
         self.conn.close()

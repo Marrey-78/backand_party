@@ -16,7 +16,7 @@ from public_events import get_events_for_map, get_events_near_user, get_events_f
 from organizers import create_new_organizer, get_my_organizers, delete_my_organizer, update_my_organizer
 from cleanup import cleanup_past_events
 from favorites import ( get_my_event_favorites, add_my_event_favorite,remove_my_event_favorite, get_my_venue_favorites, add_my_venue_favorite, remove_my_venue_favorite, get_my_organizer_favorites, add_my_organizer_favorite, remove_my_organizer_favorite)
-
+from users import get_my_profile, update_my_profile, change_my_password
 
 
 app = FastAPI()
@@ -384,3 +384,48 @@ def remove_organizer_favorite(
     user_id: str = Depends(get_current_user_id)
 ):
     return remove_my_organizer_favorite(user_id, organizer_id)
+
+@app.get("/users/me")
+def me(user_id: str = Depends(get_current_user_id)):
+    return get_my_profile(user_id)
+
+
+@app.put("/users/me")
+def update_profile(
+    data: UpdateProfileRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    return update_my_profile(user_id, data)
+
+
+@app.put("/users/me/password")
+def update_password(
+    data: ChangePasswordRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    return change_my_password(user_id, data)
+
+@app.post("/users/me/avatar")
+def upload_avatar(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user_id)
+):
+    extension = file.filename.split(".")[-1].lower()
+
+    if extension not in ["jpg", "jpeg", "png", "webp"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Formato immagine non valido"
+        )
+
+    filename = f"{uuid4()}.{extension}"
+    path = f"uploads/avatars/{filename}"
+
+    with open(path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    image_url = f"https://backandparty-production.up.railway.app/uploads/avatars/{filename}"
+
+    return {
+        "avatar": image_url
+    }

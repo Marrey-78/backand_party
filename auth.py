@@ -105,7 +105,14 @@ def login_firebase_user(id_token):
     db = DatabaseManager()
 
     try:
-        decoded_token = firebase_auth.verify_id_token(id_token)
+        try:
+            decoded_token = firebase_auth.verify_id_token(id_token)
+        except Exception as e:
+            print("FIREBASE VERIFY ERROR:", repr(e))
+            return {
+                "success": False,
+                "message": f"Errore verifica Firebase: {str(e)}"
+            }
 
         firebase_uid = decoded_token["uid"]
         email = decoded_token.get("email")

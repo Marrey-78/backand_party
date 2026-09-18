@@ -3,6 +3,7 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta
 from database import DatabaseManager
+from firebase_admin import auth as firebase_auth
 
 
 JWT_SECRET = os.getenv("JWT_SECRET")
@@ -80,6 +81,67 @@ def login_user(email, password):
                 "success": False,
                 "message": "Credenziali non valide"
             }
+
+        token = generate_token(user)
+
+        user_public = {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"],
+            "avatar": user["avatar"],
+            "role": user["role"]
+        }
+
+        return {
+            "success": True,
+            "user": user_public,
+            "token": token
+        }
+
+    finally:
+        db.close()
+
+def login_firebase_user(id_token):
+    db = DatabaseManager()
+
+    try:
+        decoded_token = firebase_auth.verify_id_token(id_token)
+
+        firebase_uid = decoded_token["uid"]
+        email = decoded_token.get("email")
+
+        if not email:
+            return {
+                "success": False,
+                "message": "L'account Firebase non contiene una email"
+            }
+
+        # 1. Cerchiamo prima l'utente tramite Firebase UID
+        user = db.get_user_by_firebase_uid(firebase_uid)
+
+        # 2. Se non esiste, controlliamo se esiste già la stessa email
+        if not user:
+            existing_user = db.get_user_by_email(email)
+
+            if existing_user:
+                return {
+                    "success": False,
+                    "message": "Esiste già un account con questa email. Accedi con email e password."
+                }
+
+            name = (
+                decoded_token.get("name")
+                or email.split("@")[0]
+            )
+
+            avatar = decoded_token.get("picture")
+
+            user = db.create_firebase_user(
+                name=name,
+                email=email,
+                avatar=avatar,
+                firebase_uid=firebase_uid
+            )
 
         token = generate_token(user)
 

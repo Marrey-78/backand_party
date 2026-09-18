@@ -1,12 +1,14 @@
 import os
 import shutil
 from uuid import uuid4
+import firebase_admin_config
+from firebase_admin import auth as firebase_auth
 from fastapi import UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from auth import register_user, login_user
+from auth import register_user, login_user, login_firebase_user
 from typing import Optional
 from fastapi import Depends
 from venues import (get_current_user_id, get_all_venue_types, create_new_venue, get_my_venues, delete_my_venue, update_my_venue)
@@ -45,6 +47,9 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class FirebaseLoginRequest(BaseModel):
+    id_token: str
 
 class CreateVenueRequest(BaseModel):
     venue_type_id: str
@@ -440,4 +445,19 @@ def upload_avatar(
 
     return {
         "avatar": image_url
+    }
+
+@app.post("/auth/firebase")
+def firebase_login(data: FirebaseLoginRequest):
+    result = login_firebase_user(data.id_token)
+
+    if not result["success"]:
+        raise HTTPException(
+            status_code=401,
+            detail=result["message"]
+        )
+
+    return {
+        "user": result["user"],
+        "token": result["token"]
     }

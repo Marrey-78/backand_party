@@ -922,6 +922,65 @@ class DatabaseManager:
             """, (user_id,))
 
             return cur.fetchall()
+        
+    def get_user_by_firebase_uid(self, firebase_uid):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    id,
+                    name,
+                    email,
+                    password_hash,
+                    avatar,
+                    role,
+                    city,
+                    firebase_uid
+                FROM users
+                WHERE firebase_uid = %s;
+            """, (firebase_uid,))
+
+            return cur.fetchone()
+        
+    def create_firebase_user(self, name, email, avatar, firebase_uid):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO users (
+                    name,
+                    email,
+                    password_hash,
+                    avatar,
+                    role,
+                    firebase_uid
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s
+                )
+                RETURNING
+                    id,
+                    name,
+                    email,
+                    avatar,
+                    role,
+                    city,
+                    firebase_uid;
+            """, (
+                name,
+                email,
+                "",
+                avatar,
+                "user",
+                firebase_uid
+            ))
+
+            user = cur.fetchone()
+            self.conn.commit()
+
+            return user
 
     def close(self):
         self.conn.close()

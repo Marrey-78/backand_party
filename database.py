@@ -1057,6 +1057,38 @@ class DatabaseManager:
             """, (user_id,))
 
             return cur.fetchone() is not None
+        
+    def create_analytics_event(
+        self,
+        event_type,
+        user_id=None,
+        session_id=None,
+        venue_id=None,
+        event_id=None
+    ):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO analytics_events (
+                    user_id,
+                    session_id,
+                    venue_id,
+                    event_id,
+                    event_type
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING *;
+            """, (
+                user_id,
+                session_id,
+                venue_id,
+                event_id,
+                event_type
+            ))
 
+            analytics_event = cur.fetchone()
+            self.conn.commit()
+
+            return analytics_event
+        
     def close(self):
         self.conn.close()   

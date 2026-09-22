@@ -19,6 +19,7 @@ from organizers import create_new_organizer, get_my_organizers, delete_my_organi
 from cleanup import cleanup_past_events
 from favorites import ( get_my_event_favorites, add_my_event_favorite,remove_my_event_favorite, get_my_venue_favorites, add_my_venue_favorite, remove_my_venue_favorite, get_my_organizer_favorites, add_my_organizer_favorite, remove_my_organizer_favorite)
 from users import get_my_profile, update_my_profile, change_my_password
+from analytics import track_analytics_event
 
 
 app = FastAPI()
@@ -50,6 +51,12 @@ class LoginRequest(BaseModel):
 
 class FirebaseLoginRequest(BaseModel):
     id_token: str
+
+class AnalyticsTrackRequest(BaseModel):
+    event_type: str
+    session_id: Optional[str] = None
+    venue_id: Optional[str] = None
+    event_id: Optional[str] = None
 
 class CreateVenueRequest(BaseModel):
     venue_type_id: str
@@ -481,3 +488,12 @@ def create_admin_venue(
     admin_user_id: str = Depends(get_current_admin_id)
 ):
     return create_new_admin_venue(data)
+
+@app.post("/analytics/track")
+def track_event(data: AnalyticsTrackRequest):
+    return track_analytics_event(
+        event_type=data.event_type,
+        session_id=data.session_id,
+        venue_id=data.venue_id,
+        event_id=data.event_id
+    )

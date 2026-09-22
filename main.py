@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from auth import register_user, login_user, login_firebase_user
 from typing import Optional
 from fastapi import Depends
-from venues import (get_current_user_id, get_all_venue_types, create_new_venue, get_my_venues, delete_my_venue, update_my_venue)
+from venues import (get_current_user_id, get_all_venue_types, create_new_venue, get_my_venues, delete_my_venue, update_my_venue, create_new_admin_venue,get_current_admin_id)
 from events import create_new_event, get_venue_events, delete_my_event, create_new_organizer_event, get_organizer_events, update_my_event
 from images import get_default_images
 from public_events import get_events_for_map, get_events_near_user, get_events_for_city
@@ -64,6 +64,19 @@ class CreateVenueRequest(BaseModel):
     website_url: Optional[str] = None
     instagram_url: Optional[str] = None
     image_url: Optional[str] = None
+
+class CreateAdminVenueRequest(BaseModel):
+    venue_type_id: str
+    name: str
+    description: Optional[str] = None
+    address: str
+    city: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    image_url: Optional[str] = None
+    source_url: Optional[str] = None
 
 class CreateOrganizerRequest(BaseModel):
     name: str
@@ -461,3 +474,10 @@ def firebase_login(data: FirebaseLoginRequest):
         "user": result["user"],
         "token": result["token"]
     }
+
+@app.post("/admin/venues")
+def create_admin_venue(
+    data: CreateAdminVenueRequest,
+    admin_user_id: str = Depends(get_current_admin_id)
+):
+    return create_new_admin_venue(data)

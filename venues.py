@@ -124,3 +124,55 @@ def update_my_venue(owner_user_id, venue_id, data):
 
     finally:
         db.close()
+
+def get_current_admin_id(authorization: str = Header(None)):
+    # Prima verifichiamo che il token sia valido
+    user_id = get_current_user_id(authorization)
+
+    db = DatabaseManager()
+
+    try:
+        if not db.user_is_admin(user_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Accesso riservato agli amministratori"
+            )
+
+        return user_id
+
+    finally:
+        db.close()
+
+def create_new_admin_venue(data):
+    db = DatabaseManager()
+
+    try:
+        latitude, longitude = geocode_address(
+            data.address,
+            data.city
+        )
+
+        if latitude is None or longitude is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Impossibile trovare le coordinate del locale"
+            )
+
+        return db.create_admin_venue(
+            venue_type_id=data.venue_type_id,
+            name=data.name,
+            description=data.description,
+            address=data.address,
+            city=data.city,
+            latitude=latitude,
+            longitude=longitude,
+            phone=data.phone,
+            email=data.email,
+            website_url=data.website_url,
+            instagram_url=data.instagram_url,
+            image_url=data.image_url,
+            source_url=data.source_url
+        )
+
+    finally:
+        db.close()

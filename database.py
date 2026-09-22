@@ -982,5 +982,83 @@ class DatabaseManager:
 
             return user
 
-    def close(self):
-        self.conn.close()
+    def create_admin_venue(
+            self,
+            venue_type_id,
+            name,
+            description,
+            address,
+            city,
+            latitude,
+            longitude,
+            phone,
+            email,
+            website_url,
+            instagram_url,
+            image_url,
+            source_url
+        ):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO venues (
+                    owner_user_id,
+                    venue_type_id,
+                    name,
+                    description,
+                    address,
+                    city,
+                    latitude,
+                    longitude,
+                    phone,
+                    email,
+                    website_url,
+                    instagram_url,
+                    image_url,
+                    claimed,
+                    source_url,
+                    last_verified_at
+                )
+                VALUES (
+                    NULL,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s,
+                    FALSE,
+                    %s,
+                    NOW()
+                )
+                RETURNING *;
+            """, (
+                venue_type_id,
+                name,
+                description,
+                address,
+                city,
+                latitude,
+                longitude,
+                phone,
+                email,
+                website_url,
+                instagram_url,
+                image_url,
+                source_url
+            ))
+
+            venue = cur.fetchone()
+            self.conn.commit()
+
+            return venue
+
+    def user_is_admin(self, user_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT id
+                FROM users
+                WHERE id = %s
+                AND role = 'admin';
+            """, (user_id,))
+
+        return cur.fetchone() is not None
+
+        def close(self):
+            self.conn.close()   

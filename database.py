@@ -979,7 +979,6 @@ class DatabaseManager:
 
             user = cur.fetchone()
             self.conn.commit()
-
             return user
 
     def create_admin_venue(
@@ -1046,7 +1045,6 @@ class DatabaseManager:
 
             venue = cur.fetchone()
             self.conn.commit()
-
             return venue
 
     def user_is_admin(self, user_id):
@@ -1058,7 +1056,7 @@ class DatabaseManager:
                 AND role = 'admin';
             """, (user_id,))
 
-        return cur.fetchone() is not None
+            return cur.fetchone() is not None
 
-        def close(self):
-            self.conn.close()   
+    def close(self):
+        self.conn.close()   

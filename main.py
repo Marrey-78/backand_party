@@ -15,11 +15,11 @@ from venues import (get_current_user_id, get_all_venue_types, create_new_venue, 
 from events import create_new_event, get_venue_events, delete_my_event, create_new_organizer_event, get_organizer_events, update_my_event
 from images import get_default_images
 from public_events import get_events_for_map, get_events_near_user, get_events_for_city
-from organizers import create_new_organizer, get_my_organizers, delete_my_organizer, update_my_organizer
+from organizers import create_new_organizer, get_my_organizers, delete_my_organizer, search_available_organizers, update_my_organizer, create_new_admin_organizer, claim_existing_organizer
 from cleanup import cleanup_past_events
 from favorites import ( get_my_event_favorites, add_my_event_favorite,remove_my_event_favorite, get_my_venue_favorites, add_my_venue_favorite, remove_my_venue_favorite, get_my_organizer_favorites, add_my_organizer_favorite, remove_my_organizer_favorite)
 from users import get_my_profile, update_my_profile, change_my_password
-from analytics import track_analytics_event
+from analytics import track_analytics_event, get_venue_stats, get_organizer_stats, get_organizer_timeline
 
 
 app = FastAPI()
@@ -57,6 +57,7 @@ class AnalyticsTrackRequest(BaseModel):
     session_id: Optional[str] = None
     venue_id: Optional[str] = None
     event_id: Optional[str] = None
+    organizer_id: Optional[str] = None
 
 class CreateVenueRequest(BaseModel):
     venue_type_id: str
@@ -107,6 +108,17 @@ class CreateEventRequest(BaseModel):
     image_url: Optional[str] = None
     ticket_url: Optional[str] = None
     max_participants: Optional[int] = None
+
+class CreateAdminOrganizerRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    image_url: Optional[str] = None
+    source_url: Optional[str] = None
+
 
 class CreateOrganizerEventRequest(BaseModel):
     organizer_id: str
@@ -495,5 +507,97 @@ def track_event(data: AnalyticsTrackRequest):
         event_type=data.event_type,
         session_id=data.session_id,
         venue_id=data.venue_id,
-        event_id=data.event_id
+        event_id=data.event_id,
+        organizer_id=data.organizer_id
+    )
+
+@app.post("/admin/organizers")
+def create_admin_organizer(
+    data: CreateAdminOrganizerRequest,
+    admin_user_id: str = Depends(get_current_admin_id)
+):
+    return create_new_admin_organizer(data)
+
+@app.post("/organizers/{organizer_id}/claim")
+def claim_organizer(
+    organizer_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return claim_existing_organizer(
+        user_id=user_id,
+        organizer_id=organizer_id
+    )
+
+@app.get("/organizers/search")
+def search_organizers(q: str):
+    return search_available_organizers(q)
+
+@app.get("/analytics/venues/{venue_id}/stats")
+def venue_analytics_stats(
+    venue_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return get_venue_stats(
+        venue_id=venue_id,
+        user_id=user_id
+    )
+
+
+@app.get("/analytics/organizers/{organizer_id}/stats")
+def organizer_analytics_stats(
+    organizer_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    return get_organizer_stats(
+        organizer_id=organizer_id,
+        user_id=user_id
+    )
+
+@app.get("/analytics/venues/{venue_id}/stats")
+def venue_analytics_stats(
+    venue_id: str,
+    period: str = "30d",
+    user_id: str = Depends(get_current_user_id)
+):
+    return get_venue_stats(
+        venue_id=venue_id,
+        user_id=user_id,
+        period=period
+    )
+
+@app.get("/analytics/organizers/{organizer_id}/stats")
+def organizer_analytics_stats(
+    organizer_id: str,
+    period: str = "30d",
+    user_id: str = Depends(get_current_user_id)
+):
+    return get_organizer_stats(
+        organizer_id=organizer_id,
+        user_id=user_id,
+        period=period
+    )
+
+@app.get("/analytics/venues/{venue_id}/timeline")
+def venue_analytics_timeline(
+    venue_id: str,
+    period: str = "30d",
+    user_id: str = Depends(get_current_user_id)
+):
+    return get_venue_timeline(
+        venue_id=venue_id,
+        user_id=user_id,
+        period=period
+    )
+
+
+@app.get("/analytics/organizers/{organizer_id}/timeline")
+def organizer_analytics_timeline(
+    organizer_id: str,
+    period: str = "30d",
+    user_id: str = Depends(get_current_user_id)
+):
+    return get_organizer_timeline(
+        organizer_id=organizer_id,
+        user_id=user_id,
+        period=period
     )

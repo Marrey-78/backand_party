@@ -117,3 +117,49 @@ def get_user_organizer_favorites(self, user_id):
         """, (user_id,))
 
         return cur.fetchall()
+
+def create_new_admin_organizer(data):
+    db = DatabaseManager()
+
+    try:
+        return db.create_admin_organizer(
+            name=data.name,
+            description=data.description,
+            phone=data.phone,
+            email=data.email,
+            website_url=data.website_url,
+            instagram_url=data.instagram_url,
+            image_url=data.image_url,
+            source_url=data.source_url
+        )
+
+    finally:
+        db.close()
+
+def claim_existing_organizer(user_id, organizer_id):
+    db = DatabaseManager()
+
+    try:
+        organizer = db.claim_organizer(
+            organizer_id=organizer_id,
+            user_id=user_id
+        )
+
+        if not organizer:
+            raise HTTPException(
+                status_code=409,
+                detail="Organizer già rivendicato o non disponibile"
+            )
+
+        return organizer
+
+    finally:
+        db.close()
+
+def search_available_organizers(search):
+    db = DatabaseManager()
+
+    try:
+        return db.search_unclaimed_organizers(search)
+    finally:
+        db.close()

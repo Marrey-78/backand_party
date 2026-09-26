@@ -1064,8 +1064,21 @@ class DatabaseManager:
         user_id=None,
         session_id=None,
         venue_id=None,
-        event_id=None
+        event_id=None,
+        organizer_id=None
     ):
+        # Se l'analytics riguarda un evento,
+        # ricaviamo automaticamente venue/organizer.
+        if event_id:
+            source = self.get_event_analytics_source(event_id)
+
+            if source:
+                if source["venue_id"]:
+                    venue_id = source["venue_id"]
+
+                if source["organizer_id"]:
+                    organizer_id = source["organizer_id"]
+
         with self.conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO analytics_events (
@@ -1073,15 +1086,17 @@ class DatabaseManager:
                     session_id,
                     venue_id,
                     event_id,
+                    organizer_id,
                     event_type
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING *;
             """, (
                 user_id,
                 session_id,
                 venue_id,
                 event_id,
+                organizer_id,
                 event_type
             ))
 
@@ -1090,5 +1105,594 @@ class DatabaseManager:
 
             return analytics_event
         
+    def create_admin_organizer(
+        self,
+        name,
+        description,
+        phone,
+        email,
+        website_url,
+        instagram_url,
+        image_url,
+        source_url
+    ):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO organizers (
+                    owner_user_id,
+                    name,
+                    description,
+                    phone,
+                    email,
+                    website_url,
+                    instagram_url,
+                    image_url,
+                    claimed,
+                    source_url,
+                    last_verified_at
+                )
+                VALUES (
+                    NULL,
+                    %s, %s, %s, %s, %s, %s, %s,
+                    FALSE,
+                    %s,
+                    NOW()
+                )
+                RETURNING *;
+            """, (
+                name,
+                description,
+                phone,
+                email,
+                website_url,
+                instagram_url,
+                image_url,
+                source_url
+            ))
+
+            organizer = cur.fetchone()
+            self.conn.commit()
+
+            return organizer
+
+    def claim_organizer(self, organizer_id, user_id):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                UPDATE organizers
+                SET
+                    owner_user_id = %s,
+                    claimed = TRUE,
+                    updated_at = NOW()
+                WHERE id = %s
+                  AND claimed = FALSE
+                  AND owner_user_id IS NULL
+                RETURNING *;
+            """, (
+                user_id,
+                organizer_id
+            ))
+
+            organizer = cur.fetchone()
+            self.conn.commit()
+
+            return organizer
+
     def close(self):
         self.conn.close()   
+
+def search_unclaimed_organizers(self, search):
+    with self.conn.cursor() as cur:
+        cur.execute("""
+            SELECT
+                id,
+                name,
+                description,
+                website_url,
+                instagram_url,
+                image_url,
+                claimed
+            FROM organizers
+            WHERE claimed = FALSE
+              AND owner_user_id IS NULL
+              AND LOWER(name) LIKE LOWER(%s)
+            ORDER BY name
+            LIMIT 20;
+        """, (f"%{search.strip()}%",))
+
+        return cur.fetchall()
+
+def get_event_analytics_source(self, event_id):
+    with self.conn.cursor() as cur:
+        cur.execute("""
+            SELECT
+                venue_id,
+                organizer_id
+            FROM events
+            WHERE id = %s;
+        """, (event_id,))
+
+        return cur.fetchone()
+
+def get_organizer_analytics_stats(
+    self,
+    organizer_id,
+    owner_user_id,
+    days=None
+):
+    if not self.user_owns_organizer(
+        organizer_id,
+        owner_user_id
+    ):
+        return None
+
+    with self.conn.cursor() as cur:
+
+        cur.execute("""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE event_type = 'organizer_view'
+                ) AS organizer_views,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'organizer_favorite'
+                ) AS organizer_favorites,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'event_impression'
+                ) AS event_impressions,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'event_view'
+                ) AS event_views,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'event_favorite'
+                ) AS event_favorites,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'website_click'
+                ) AS website_clicks,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'instagram_click'
+                ) AS instagram_clicks,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'ticket_click'
+                ) AS ticket_clicks,
+
+                COUNT(
+                    DISTINCT COALESCE(
+                        user_id::text,
+                        session_id
+                    )
+                ) AS unique_visitors
+
+            FROM analytics_events
+
+            WHERE organizer_id = %s
+
+            AND (
+                %s IS NULL
+                OR created_at >= NOW() - (%s * INTERVAL '1 day')
+            );
+        """, (
+            organizer_id,
+            days,
+            days
+        ))
+
+        stats = dict(cur.fetchone())
+
+        previous_views = None
+
+        if days is not None:
+
+            cur.execute("""
+                SELECT COUNT(*) AS views
+
+                FROM analytics_events
+
+                WHERE organizer_id = %s
+                AND event_type = 'organizer_view'
+
+                AND created_at >=
+                    NOW() - (%s * 2 * INTERVAL '1 day')
+
+                AND created_at <
+                    NOW() - (%s * INTERVAL '1 day');
+            """, (
+                organizer_id,
+                days,
+                days
+            ))
+
+            previous_views = cur.fetchone()["views"]
+
+        stats["previous_organizer_views"] = previous_views
+
+        # TOP EVENTS
+
+        cur.execute("""
+            SELECT
+                e.id,
+                e.title,
+
+                COUNT(*) FILTER (
+                    WHERE ae.event_type = 'event_impression'
+                ) AS impressions,
+
+                COUNT(*) FILTER (
+                    WHERE ae.event_type = 'event_view'
+                ) AS views,
+
+                COUNT(*) FILTER (
+                    WHERE ae.event_type = 'event_favorite'
+                ) AS favorites,
+
+                COUNT(*) FILTER (
+                    WHERE ae.event_type = 'ticket_click'
+                ) AS ticket_clicks
+
+            FROM events e
+
+            LEFT JOIN analytics_events ae
+                ON ae.event_id = e.id
+                AND (
+                    %s IS NULL
+                    OR ae.created_at >=
+                       NOW() - (%s * INTERVAL '1 day')
+                )
+
+            WHERE e.organizer_id = %s
+
+            GROUP BY e.id, e.title
+
+            ORDER BY views DESC
+
+            LIMIT 5;
+        """, (
+            days,
+            days,
+            organizer_id
+        ))
+
+        stats["top_events"] = cur.fetchall()
+
+        return stats
+
+def get_venue_analytics_stats(
+    self,
+    venue_id,
+    owner_user_id,
+    days=None
+):
+    if not self.user_owns_venue(
+        venue_id,
+        owner_user_id
+    ):
+        return None
+
+    with self.conn.cursor() as cur:
+
+        # -------------------------
+        # CURRENT PERIOD
+        # -------------------------
+
+        cur.execute("""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE event_type = 'venue_view'
+                ) AS venue_views,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'venue_favorite'
+                ) AS venue_favorites,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'event_impression'
+                ) AS event_impressions,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'event_view'
+                ) AS event_views,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'event_favorite'
+                ) AS event_favorites,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'website_click'
+                ) AS website_clicks,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'instagram_click'
+                ) AS instagram_clicks,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'ticket_click'
+                ) AS ticket_clicks,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'directions_click'
+                ) AS directions_clicks,
+
+                COUNT(
+                    DISTINCT COALESCE(
+                        user_id::text,
+                        session_id
+                    )
+                ) AS unique_visitors
+
+            FROM analytics_events
+
+            WHERE venue_id = %s
+
+            AND (
+                %s IS NULL
+                OR created_at >= NOW() - (%s * INTERVAL '1 day')
+            );
+        """, (
+            venue_id,
+            days,
+            days
+        ))
+
+        stats = dict(cur.fetchone())
+
+        # -------------------------
+        # PREVIOUS PERIOD
+        # -------------------------
+
+        previous_views = None
+
+        if days is not None:
+
+            cur.execute("""
+                SELECT COUNT(*) AS views
+                FROM analytics_events
+
+                WHERE venue_id = %s
+                AND event_type = 'venue_view'
+
+                AND created_at >=
+                    NOW() - (%s * 2 * INTERVAL '1 day')
+
+                AND created_at <
+                    NOW() - (%s * INTERVAL '1 day');
+            """, (
+                venue_id,
+                days,
+                days
+            ))
+
+            previous_views = cur.fetchone()["views"]
+
+        stats["previous_venue_views"] = previous_views
+
+        # -------------------------
+        # TOP EVENTS
+        # -------------------------
+
+        cur.execute("""
+            SELECT
+                e.id,
+                e.title,
+
+                COUNT(*) FILTER (
+                    WHERE ae.event_type = 'event_impression'
+                ) AS impressions,
+
+                COUNT(*) FILTER (
+                    WHERE ae.event_type = 'event_view'
+                ) AS views,
+
+                COUNT(*) FILTER (
+                    WHERE ae.event_type = 'event_favorite'
+                ) AS favorites,
+
+                COUNT(*) FILTER (
+                    WHERE ae.event_type = 'ticket_click'
+                ) AS ticket_clicks
+
+            FROM events e
+
+            LEFT JOIN analytics_events ae
+                ON ae.event_id = e.id
+                AND (
+                    %s IS NULL
+                    OR ae.created_at >=
+                       NOW() - (%s * INTERVAL '1 day')
+                )
+
+            WHERE e.venue_id = %s
+
+            GROUP BY e.id, e.title
+
+            ORDER BY views DESC
+
+            LIMIT 5;
+        """, (
+            days,
+            days,
+            venue_id
+        ))
+
+        stats["top_events"] = cur.fetchall()
+
+        return stats
+
+def get_venue_analytics_timeline(
+    self,
+    venue_id,
+    owner_user_id,
+    days=30
+):
+    if not self.user_owns_venue(
+        venue_id,
+        owner_user_id
+    ):
+        return None
+
+    with self.conn.cursor() as cur:
+        cur.execute("""
+            WITH dates AS (
+                SELECT generate_series(
+                    CURRENT_DATE - (%s - 1),
+                    CURRENT_DATE,
+                    INTERVAL '1 day'
+                )::date AS day
+            ),
+
+            daily_stats AS (
+                SELECT
+                    created_at::date AS day,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'venue_view'
+                    ) AS profile_views,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'event_impression'
+                    ) AS event_impressions,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'event_view'
+                    ) AS event_views,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'event_favorite'
+                    ) AS event_favorites,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'ticket_click'
+                    ) AS ticket_clicks
+
+                FROM analytics_events
+
+                WHERE venue_id = %s
+                AND created_at >=
+                    CURRENT_DATE - (%s - 1)
+
+                GROUP BY created_at::date
+            )
+
+            SELECT
+                d.day,
+
+                COALESCE(ds.profile_views, 0)
+                    AS profile_views,
+
+                COALESCE(ds.event_impressions, 0)
+                    AS event_impressions,
+
+                COALESCE(ds.event_views, 0)
+                    AS event_views,
+
+                COALESCE(ds.event_favorites, 0)
+                    AS event_favorites,
+
+                COALESCE(ds.ticket_clicks, 0)
+                    AS ticket_clicks
+
+            FROM dates d
+
+            LEFT JOIN daily_stats ds
+                ON ds.day = d.day
+
+            ORDER BY d.day ASC;
+        """, (
+            days,
+            venue_id,
+            days
+        ))
+
+        return cur.fetchall()
+
+def get_organizer_analytics_timeline(
+    self,
+    organizer_id,
+    owner_user_id,
+    days=30
+):
+    if not self.user_owns_organizer(
+        organizer_id,
+        owner_user_id
+    ):
+        return None
+
+    with self.conn.cursor() as cur:
+        cur.execute("""
+            WITH dates AS (
+                SELECT generate_series(
+                    CURRENT_DATE - (%s - 1),
+                    CURRENT_DATE,
+                    INTERVAL '1 day'
+                )::date AS day
+            ),
+
+            daily_stats AS (
+                SELECT
+                    created_at::date AS day,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'organizer_view'
+                    ) AS profile_views,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'event_impression'
+                    ) AS event_impressions,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'event_view'
+                    ) AS event_views,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'event_favorite'
+                    ) AS event_favorites,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'ticket_click'
+                    ) AS ticket_clicks
+
+                FROM analytics_events
+
+                WHERE organizer_id = %s
+
+                AND created_at >=
+                    CURRENT_DATE - (%s - 1)
+
+                GROUP BY created_at::date
+            )
+
+            SELECT
+                d.day,
+
+                COALESCE(ds.profile_views, 0)
+                    AS profile_views,
+
+                COALESCE(ds.event_impressions, 0)
+                    AS event_impressions,
+
+                COALESCE(ds.event_views, 0)
+                    AS event_views,
+
+                COALESCE(ds.event_favorites, 0)
+                    AS event_favorites,
+
+                COALESCE(ds.ticket_clicks, 0)
+                    AS ticket_clicks
+
+            FROM dates d
+
+            LEFT JOIN daily_stats ds
+                ON ds.day = d.day
+
+            ORDER BY d.day ASC;
+        """, (
+            days,
+            organizer_id,
+            days
+        ))
+
+        return cur.fetchall()

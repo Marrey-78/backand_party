@@ -19,8 +19,13 @@ from organizers import create_new_organizer, get_my_organizers, delete_my_organi
 from cleanup import cleanup_past_events
 from favorites import ( get_my_event_favorites, add_my_event_favorite,remove_my_event_favorite, get_my_venue_favorites, add_my_venue_favorite, remove_my_venue_favorite, get_my_organizer_favorites, add_my_organizer_favorite, remove_my_organizer_favorite)
 from users import get_my_profile, update_my_profile, change_my_password
-from analytics import track_analytics_event, get_venue_stats, get_organizer_stats, get_organizer_timeline
-
+from analytics import (
+    track_analytics_event,
+    get_venue_stats,
+    get_organizer_stats,
+    get_venue_timeline,
+    get_organizer_timeline
+)
 
 app = FastAPI()
 
@@ -532,26 +537,6 @@ def claim_organizer(
 def search_organizers(q: str):
     return search_available_organizers(q)
 
-@app.get("/analytics/venues/{venue_id}/stats")
-def venue_analytics_stats(
-    venue_id: str,
-    user_id: str = Depends(get_current_user_id)
-):
-    return get_venue_stats(
-        venue_id=venue_id,
-        user_id=user_id
-    )
-
-
-@app.get("/analytics/organizers/{organizer_id}/stats")
-def organizer_analytics_stats(
-    organizer_id: str,
-    user_id: str = Depends(get_current_user_id)
-):
-    return get_organizer_stats(
-        organizer_id=organizer_id,
-        user_id=user_id
-    )
 
 @app.get("/analytics/venues/{venue_id}/stats")
 def venue_analytics_stats(
